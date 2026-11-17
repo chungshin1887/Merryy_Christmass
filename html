@@ -1,1 +1,116 @@
-
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASCII Christmas Tree 3D</title>
+<style>
+html,body{height:100%;margin:0;background:#05070d;overflow:hidden}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block}
+#h{position:fixed;left:12px;top:calc(env(safe-area-inset-top,0px) + 8px);font:12px ui-monospace,Menlo,monospace;color:#6b738a}
+</style></head><body>
+<canvas id="c"></canvas><div id="h">탭하면 처음부터 다시 시작</div>
+<script>
+// letters used: only those in "MERRY CHRISTMAS"  (M E R Y C H I S T A)
+const COLS=96,ROWS=58,S=6.5,T=0.5,cT=Math.cos(T),sT=Math.sin(T),OM=0.6,ROWC=25,YC=4.8,FR=6.8,SY=10.7,RO=0.95;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),rnd=Math.random,C=Math.cos,Sn=Math.sin,TAU=6.2832;
+let f,cw,ch,dpr;
+function fit(){dpr=devicePixelRatio||1;f=Math.min(innerWidth/(COLS*.6),innerHeight/(ROWS*1.2));cw=f*.6;ch=f*1.2;
+cv.style.width=COLS*cw+'px';cv.style.height=ROWS*ch+'px';cv.width=COLS*cw*dpr;cv.height=ROWS*ch*dpr}
+fit();addEventListener('resize',fit);
+const rgb=(c,m)=>`rgb(${Math.min(255,c[0]*m)|0},${Math.min(255,c[1]*m)|0},${Math.min(255,c[2]*m)|0})`;
+const RAMP="MMHHREESCCAAYTTI",SH="MHRESCAYTI",WHITE=[255,252,235];
+// muted, low-saturation foliage
+const FP=[0,1,2].map(t=>Array.from({length:16},(_,l)=>`hsl(${126+t*8},46%,${11+l*3}%)`));
+FP.push(Array.from({length:16},(_,l)=>`hsl(160,10%,${42+l*3}%)`));
+const TB=[1.3,3,4.6,6.1,7.5],TH=[3.2,3,2.8,2.6,2.6],TR=[4.4,3.65,2.95,2.25,1.5];
+const rtree=y=>{let m=.2;for(let i=0;i<5;i++)if(y>=TB[i]&&y<=TB[i]+TH[i])m=Math.max(m,TR[i]*(1-(y-TB[i])/TH[i]));return m};
+const tf=y=>2+(y-1.3)/9*7.5;   // one continuous growth front for the whole tree
+const P=[];
+// floor + rim
+for(let i=0;i<6500;i++){const a=rnd()*TAU,r=FR*Math.sqrt(rnd());P.push({k:5,x:C(a)*r,y:0,z:Sn(a)*r,r,t0:r/FR*1.3,n:rnd()})}
+for(let i=0;i<1000;i++){const a=rnd()*TAU;P.push({k:0,x:C(a)*FR,y:-rnd()*.5,z:Sn(a)*FR,nx:C(a),ny:0,nz:Sn(a),t0:1,c:[120,135,165]})}
+// trunk first
+for(let i=0;i<1100;i++){const a=rnd()*TAU,y=rnd()*2.5,r=.65*(1+.08*Sn(a*7));
+P.push({k:0,x:C(a)*r,y,z:Sn(a)*r,nx:C(a),ny:0,nz:Sn(a),t0:.6+y/2.5*1.8,c:[112,86,62]})}
+// foliage: layered cones, continuous growth
+for(let i=0;i<5;i++){const rb=TR[i],h=TH[i],sl=Math.hypot(rb,h),nh=h/sl,nv=rb/sl,n=Math.round(rb*sl*3.14*40);
+for(let q=0;q<n;q++){const u=1-Math.sqrt(1-rnd()),a=rnd()*TAU,y=TB[i]+u*h,r=rb*(1-u)*(.93+.07*rnd())*(1+.07*Sn(a*11+u*22));
+const sh=(i<4&&y>TB[i+1]-.8)?.5:1;
+P.push({k:1,x:C(a)*r,y,z:Sn(a)*r,nx:C(a)*nh,ny:nv,nz:Sn(a)*nh,t0:tf(y),tone:rnd()<.03?3:(rnd()*3)|0,n:rnd(),sh})}}
+// light garland (follows the growth front)
+const BC=[[255,205,110],[255,236,190]];
+for(let i=0;i<1500;i++){const s=i/1500,y=1.6+s*8.4,a=s*6.5*TAU,r=rtree(y)+.18,bulb=i%11===0;
+P.push({k:bulb?3:2,x:C(a)*r,y,z:Sn(a)*r,t0:Math.max(6+s*6,tf(y)+.2),ph:rnd()*6.28,c:bulb?BC[(i/11|0)%2]:[190,165,100]})}
+// ornaments: shimmer + glints
+const OC=[[230,40,55],[245,195,65],[70,130,245],[50,205,170],[225,70,175],[205,212,230]];
+for(let j=0;j<30;j++){const s=(j+.5)/30,y=2+s*7.4,a=-s*4*TAU,r=rtree(y)+.4,cx=C(a)*r,cz=Sn(a)*r,ph=rnd()*6.28,t0=Math.max(9+j*.2,tf(y)+.3);
+for(let q=0;q<20;q++){let vx=rnd()-.5,vy=rnd()-.5,vz=rnd()-.5;const l=Math.hypot(vx,vy,vz)||1;vx/=l;vy/=l;vz/=l;
+P.push({k:6,x:cx+vx*.34,y:y+vy*.34,z:cz+vz*.34,nx:vx,ny:vy,nz:vz,t0,c:OC[j%6],ph})}
+for(let g=0;g<3;g++){const ga=g*2.094+rnd(),vx=C(ga)*.8,vz=Sn(ga)*.8,vy=.5,l=Math.hypot(vx,vy,vz);
+P.push({k:7,x:cx+vx/l*.38,y:y+vy/l*.38,z:cz+vz/l*.38,nx:vx/l,ny:vy/l,nz:vz/l,t0,ph:ph+g})}}
+// star: true 5-point star, extruded (3D), tips up
+const V=[];for(let i=0;i<10;i++){const th=1.5708+i*Math.PI/5,r=i%2?RO*.382:RO;V.push([r*C(th),r*Sn(th)])}
+const TH2=.15,ST0=15.5;
+for(let i=0;i<10;i++){const A=V[i],B=V[(i+1)%10];
+for(const sg of[1,-1])for(let q=0;q<70;q++){let u=rnd(),v=rnd();if(u+v>1){u=1-u;v=1-v}
+P.push({k:4,x:u*A[0]+v*B[0],y:u*A[1]+v*B[1],z:sg*TH2,nx:0,ny:0,nz:sg,t0:ST0,ph:rnd()})}
+const dx=B[0]-A[0],dy=B[1]-A[1],l=Math.hypot(dx,dy);
+for(let e=0;e<=l;e+=.06)for(let z=-TH2;z<=TH2;z+=.06)P.push({k:4,x:A[0]+dx*e/l,y:A[1]+dy*e/l,z,nx:dy/l,ny:-dx/l,nz:0,t0:ST0,ph:rnd()})}
+// presents tucked right up against the tree skirt
+const PR=[[20,2,1.5,[235,50,70],[255,225,130],.4],[95,1.8,1.2,[60,130,255],[245,245,255],-.3],[170,2.2,1.3,[255,200,50],[230,50,80],.7],[245,1.7,1.6,[180,90,240],[130,240,200],-.6],[320,1.9,1.1,[40,200,130],[255,130,190],.2]];
+PR.forEach(([deg,w,h,c,rb,yaw],i)=>{const t0=17.5+i*.9,hw=w/2,cx=C(deg*.01745)*4.0,cz=Sn(deg*.01745)*4.0,cy=C(yaw),sy=Sn(yaw);
+const add=(x,y,z,nx,ny,nz,col)=>P.push({k:0,x:cx+x*cy+z*sy,y,z:cz-x*sy+z*cy,nx:nx*cy+nz*sy,ny,nz:-nx*sy+nz*cy,t0,box:1,c:col||((Math.abs(x)<.2||Math.abs(z)<.2)?rb:c)});
+for(let a=-hw;a<=hw;a+=.1)for(let b=-hw;b<=hw;b+=.1)add(a,h,b,0,1,0);
+for(let a=-hw;a<=hw;a+=.1)for(let y=0;y<=h;y+=.1){add(a,y,hw,0,0,1);add(a,y,-hw,0,0,-1);add(hw,y,a,1,0,0);add(-hw,y,a,-1,0,0)}
+for(let q=0;q<40;q++){const a=rnd()*TAU;add(C(a)*.45,h+.15+Math.abs(Sn(a))*.4,(rnd()-.5)*.2,0,1,0,rb)}});
+// 3D snow
+const SNC="ITYS";
+const SN=Array.from({length:280},()=>({x:(rnd()-.5)*17,y:rnd()*14,z:(rnd()-.5)*17,v:1.2+rnd()*1.4,ph:rnd()*6.28,ch:SNC[rnd()*4|0]}));
+const TXT="M E R R Y   C H R I S T M A S";
+const buf=new Array(COLS*ROWS),zb=new Float32Array(COLS*ROWS);
+let t00=performance.now(),last=t00;
+addEventListener('pointerdown',()=>{t00=performance.now()});
+function plot(X,y,Z,ch,col){const zc=Z*cT+y*sT,w=1+zc*.014,c=Math.round(COLS/2+X*S*w),r=Math.round(ROWC-(y*cT-Z*sT-YC)*S*.5*w);
+if(c<0||c>=COLS||r<0||r>=ROWS)return -1;const id=r*COLS+c;if(zc<=zb[id])return -1;buf[id]=[ch,col];zb[id]=zc;return id}
+function sparkle(id,col,R){const c=id%COLS;buf[id]=['M',col];
+for(let d=1;d<=R;d++){if(c-d>=0)buf[id-d]=['T',col];if(c+d<COLS)buf[id+d]=['T',col];
+if(id-d*COLS>=0)buf[id-d*COLS]=['I',col];if(id+d*COLS<buf.length)buf[id+d*COLS]=['I',col]}}
+function frame(now){
+const t=(now-t00)/1000,dt=Math.min(.1,(now-last)/1000);last=now;
+const a=t*OM,ca=C(a),sa=Sn(a);buf.fill(null);zb.fill(-1e9);
+const halos=[],sp=[];
+for(const p of P){if(t<p.t0)continue;
+let x=p.x,y=p.y,z=p.z;
+if(p.k===4){const g=Math.min(1,(t-ST0)/1.2),e=g*g*(3-2*g);x*=e;y=SY+y*e;z*=e}
+if(p.box){const d=Math.min(1,(t-p.t0)/.7);y+=13*(1-d*d)}
+const X=x*ca+z*sa,Z=-x*sa+z*ca;let ch,col;
+if(p.k===5){const m=Math.min(1,.5+p.r/6)*(.4+.25*Sn(p.r*4+p.n))*(1-.35*(p.r/FR)**4);ch='SCE'[(p.n*3)|0];col=rgb([205,220,245],m*1.5)}
+else if(p.k===2){const g=Math.max(0,Sn(t*7+p.ph*30)),mx=Math.min(1,g*g*1.2);ch=mx>.6?'M':'S';col=rgb([255,205+50*mx,105+130*mx],.75+.45*mx)}
+else if(p.k===3){const tw=.5+.5*Sn(t*5+p.ph);ch='M';col=rgb(p.c,.6+.7*tw);const id=plot(X,y,Z,ch,col);
+ if(id>=0){halos.push([id,p.c,tw]);if(tw>.97)sp.push([id,rgb(p.c,1.3),1])}continue}
+else{const NX=p.nx*ca+p.nz*sa,NZ=-p.nx*sa+p.nz*ca,d=Math.max(0,-.45*NX+.6*p.ny+.66*NZ);
+ if(p.k===1){const b=(.2+.8*d)*p.sh,lv=Math.max(0,Math.min(15,(b*17)|0));ch=RAMP[Math.min(15,15-lv+((p.n*3)|0))];col=(t-p.t0<.25)?'#e8f2ea':FP[p.tone][lv]}
+ else if(p.k===0){const b=.3+.7*Math.min(1,d);ch=SH[Math.min(9,((1-b)*10)|0)];col=rgb(p.c,b*1.15)}
+ else if(p.k===6){const b=.35+.65*Math.min(1,d),sh=.85+.4*Math.max(0,Sn(t*4+p.ph)),sp2=Math.max(0,(d-.7)/.3);
+  const cc=[p.c[0]+(255-p.c[0])*sp2,p.c[1]+(255-p.c[1])*sp2,p.c[2]+(255-p.c[2])*sp2];ch=SH[Math.min(9,((1-Math.min(1,b*sh))*10)|0)];col=rgb(cc,b*sh*1.2)}
+ else if(p.k===7){if(NZ<.15)continue;const id=plot(X,y,Z,'M',rgb(WHITE,1));
+  if(id>=0&&Sn(t*2.6+p.ph*3)>.8)sp.push([id,rgb(WHITE,1),1]);continue}
+ else{const m=.8+.4*Math.max(0,Sn(t*9+p.ph*40)),b=.5+.5*Math.min(1,d);ch=b>.8?'M':'H';col=rgb([255,215,90],b*m*(.85+.15*Sn(t*5)))}}
+plot(X,y,Z,ch,col)}
+for(const [id,cc,tw] of [])for(const d of[-1,1]){const i=id+d;if(i>=0&&i<buf.length&&!buf[i])buf[i]=['I',`rgba(${cc[0]},${cc[1]},${cc[2]},${.4*tw})`]}
+for(const s of SN){s.y-=s.v*dt;if(s.y<0){s.y=14;s.x=(rnd()-.5)*17;s.z=(rnd()-.5)*17}
+const zc=s.z*cT+s.y*sT;plot(s.x+Sn(t*.8+s.ph)*.4,s.y,s.z,s.ch,`rgba(235,242,255,${Math.max(.2,Math.min(.9,.55+zc*.05))})`)}
+for(const [id,col,R] of sp)sparkle(id,col,R);
+if(false){const w=1+SY*sT*.014,sc=COLS/2,sr=Math.round(ROWC-(SY*cT-YC)*S*.5*w),p=.5+.5*Sn(t*3.2),L=Math.round(3+6*p);
+const put=(c,r,k,al)=>{if(c<0||c>=COLS||r<0||r>=ROWS)return;const i=r*COLS+c;if(!buf[i])buf[i]=[k,`rgba(255,228,130,${al})`]};
+for(let d=0;d<L;d++){const al=.75*(1-d/L);put(sc-7-d,sr,'T',al);put(sc+7+d,sr,'T',al)}
+for(let d=0;d<Math.min(L,3);d++)put(sc,sr-4-d,'I',.7*(1-d/3));
+for(let k=0;k<6;k++){const an=t*1.4+k*1.047,tw=.5+.5*Sn(t*6+k*2);put(sc+Math.round(C(an)*10),sr+Math.round(Sn(an)*5),'ITY'[k%3],.2+.7*tw)}}
+if(t>22.5){const n=Math.min(TXT.length,((t-22.5)*14)|0),c0=Math.round((COLS-TXT.length)/2);
+for(let i=0;i<n;i++)if(TXT[i]!==' ')buf[57*COLS+c0+i]=[TXT[i],'rgb(255,200,110)']}
+ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#05070d';ctx.fillRect(0,0,cv.width,cv.height);
+ctx.font=`bold ${f*.98}px ui-monospace,Menlo,Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+for(let i=0;i<buf.length;i++){const b=buf[i];if(!b)continue;ctx.fillStyle=b[1];ctx.fillText(b[0],((i%COLS)+.5)*cw,((i/COLS|0)+.5)*ch)}
+requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script></body></html>
